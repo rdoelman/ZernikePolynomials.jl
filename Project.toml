@@ -1,13 +1,13 @@
 name = "ZernikePolynomials"
 uuid = "e462d300-c971-11e9-30f1-fb93b1f8f73a"
-authors = ["Reinier <r.doelman@tudelft.nl>"]
+authors = ["Reinier Doelman <r.doelman@tudelft.nl>"]
 version = "0.1.0"
+
+[deps]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [compat]
 julia = "1"
 
 [extras]
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
-
-[targets]
-test = ["Test"]
