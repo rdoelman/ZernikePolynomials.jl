@@ -1,6 +1,6 @@
 name = "ZernikePolynomials"
 uuid = "e462d300-c971-11e9-30f1-fb93b1f8f73a"
-authors = ["Reinier Doelman <r.doelman@tudelft.nl>"]
+authors = ["Reinier Doelman <rdoelman@users.noreply.github.com>"]
 version = "0.1.0"
 
 [deps]
