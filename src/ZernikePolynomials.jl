@@ -253,13 +253,13 @@ function Zernikecoefficients(phase::AbstractArray{Float64,2}, J::Vector{Int}; in
 end
 
 """
-    Zernikecoefficients(x::LinRange{Float64}, phase::AbstractArray{Float64,2}, J::Vector{Int}; index=:OSA)
+    Zernikecoefficients(x::AbstractArray{<: AbstractFloat,1}, phase::AbstractArray{Float64,2}, J::Vector{Int}; index=:OSA)
 
 Compute the Zernike coefficients (OSA normalization) that in a least-squares sense optimally describe the phase.
 The Zernike polynomials used are specified with an index vector J, according to OSA indexing.
 
 """
-function Zernikecoefficients(X::LinRange{Float64}, phase::AbstractArray{Float64,2}, J::Vector{Int}; index=:OSA)
+function Zernikecoefficients(X::AbstractArray{<: AbstractFloat,1}, phase::AbstractArray{Float64,2}, J::Vector{Int}; index=:OSA)
   s = size(phase)
   if !(s[1] == s[2] && s[1] == length(X))
     error("Non-matching size")
@@ -289,7 +289,7 @@ function evaluateZernike(N::Int, J::Vector{Int}, coefficients::AbstractArray{Flo
 end
 
 """
-    evaluateZernike(x::LinRange{Float64}, J::Vector{Int}, coefficients::Vector{Float64}; index=:OSA)
+    evaluateZernike(x::AbstractArray{<: AbstractFloat,1}, J::Vector{Int}, coefficients::Vector{Float64}; index=:OSA)
 
 Evaluate the Zernike polynomials on a grid as specified by the Zernike coefficients of the polynomials J, on a grid with points in x
 
@@ -298,7 +298,7 @@ Evaluate the Zernike polynomials on a grid as specified by the Zernike coefficie
 julia> W = evaluateZernike(64,[5, 6],[0.3, 4.1])
 ```
 """
-function evaluateZernike(X::LinRange{Float64}, J::Vector{Int}, coefficients::Vector{Float64}; index=:OSA)
+function evaluateZernike(X::AbstractArray{<: AbstractFloat,1}, J::Vector{Int}, coefficients::Vector{Float64}; index=:OSA)
   D = [[Zernike(j,coord=:cartesian,index=index)(x,y) for x in X, y in X] for j in J ]
   return reduce(+,map(*,D,coefficients))
 end
@@ -307,7 +307,7 @@ function evaluateZernike(n::Int, J::Int, coefficients::Float64; index=:OSA)
   return evaluateZernike(n, [J], [coefficients]; index=index)
 end
 
-function evaluateZernike(X::LinRange{Float64}, J::Int, coefficients::Float64; index=:OSA)
+function evaluateZernike(X::AbstractArray{<: AbstractFloat,1}, J::Int, coefficients::Float64; index=:OSA)
   return evaluateZernike(X, [J], [coefficients]; index=index)
 end
 
