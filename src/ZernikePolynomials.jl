@@ -155,8 +155,9 @@ function OSA2Noll(j::Int)
   return mn2Noll(OSA2mn(j)...)
 end
 
+
 """
-    R(m::Int,n::Int)
+    R([T=Float64], m::Int,n::Int)
 
 Obtain the function ρ -> R_n^|m|(ρ), where R is the radial polynomial in Zernike polynomials
 
@@ -165,10 +166,14 @@ Obtain the function ρ -> R_n^|m|(ρ), where R is the radial polynomial in Zerni
 julia> R(1,1)
 ```
 """
-function R(m::Int,n::Int) # radial polynomial
+function R(::Type{T}, m::Int,n::Int) where T
   p = s -> ((-1)^s * factorial(n-s))/ (factorial(s)*factorial(Int(0.5*(n+abs(m))-s))*factorial(Int(0.5*(n-abs(m))-s)))
   f = x -> sum([p(s)*x.^(n-2s) for s in 0:Int((n-abs(m))/2)])
   return f
+end
+
+function R(m::Int,n::Int) # radial polynomial
+    R(Float64, m, n)
 end
 
 function normalization(m::Int,n::Int) # normalization constant of the zernike polynomial
@@ -244,12 +249,12 @@ The Zernike polynomials used are specified with an index vector J, according to 
 """
 function Zernikecoefficients(phase::AbstractArray{T,2}, J::Vector{Int}; index=:OSA) where T
   s = size(phase)
-  X = range(-1.,stop=1,length=s[1])
-  Y = range(-1.,stop=1,length=s[2])
+  X = range(-one(T), stop=one(T), length=s[1])
+  Y = range(-one(T), stop=one(T), length=s[2])
 
   D = [[Zernike(j,coord=:cartesian,index=index)(x,y) for x in X, y in Y] for j in J ]
   G = cat([D[i][:] for i in 1:length(J)]...; dims=2)
-  return G\phase[:]
+  return G \ view(phase, :)
 end
 
 """
@@ -267,7 +272,7 @@ function Zernikecoefficients(X::AbstractArray{<: AbstractFloat,1}, phase::Abstra
 
   D = [[Zernike(j,coord=:cartesian,index=index)(x,y) for x in X, y in X] for j in J ]
   G = cat([D[i][:] for i in 1:length(J)]...; dims=2)
-  return G\phase[:]
+  return G \ view(phase, :)
 end
 
 """
@@ -281,8 +286,8 @@ julia> W = evaluateZernike(64,[5, 6],[0.3, 4.1])
 ```
 """
 function evaluateZernike(N::Int, J::Vector{Int}, coefficients::AbstractArray{T,1}; index=:OSA) where T
-  X = range(-1.,stop=1,length=N)
-  Y = range(-1.,stop=1,length=N)
+  X = range(-one(T), stop=one(T), length=N)
+  Y = range(-one(T), stop=one(T), length=N)
 
   D = [[Zernike(j,coord=:cartesian,index=index)(x,y) for x in X, y in Y] for j in J ]
   return reduce(+,map(*,D,coefficients))
