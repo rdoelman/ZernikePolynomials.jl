@@ -242,7 +242,7 @@ Compute the Zernike coefficients (OSA normalization) that in a least-squares sen
 The Zernike polynomials used are specified with an index vector J, according to OSA indexing.
 
 """
-function Zernikecoefficients(phase::AbstractArray{Float64,2}, J::Vector{Int}; index=:OSA)
+function Zernikecoefficients(phase::AbstractArray{T,2}, J::Vector{Int}; index=:OSA) where T
   s = size(phase)
   X = range(-1.,stop=1,length=s[1])
   Y = range(-1.,stop=1,length=s[2])
@@ -280,7 +280,7 @@ Evaluate the Zernike polynomials on an N-by-N grid as specified by the Zernike c
 julia> W = evaluateZernike(64,[5, 6],[0.3, 4.1])
 ```
 """
-function evaluateZernike(N::Int, J::Vector{Int}, coefficients::AbstractArray{Float64,1}; index=:OSA)
+function evaluateZernike(N::Int, J::Vector{Int}, coefficients::AbstractArray{T,1}; index=:OSA) where T
   X = range(-1.,stop=1,length=N)
   Y = range(-1.,stop=1,length=N)
 
@@ -298,16 +298,17 @@ Evaluate the Zernike polynomials on a grid as specified by the Zernike coefficie
 julia> W = evaluateZernike(64,[5, 6],[0.3, 4.1])
 ```
 """
-function evaluateZernike(X::AbstractArray{<: AbstractFloat,1}, J::Vector{Int}, coefficients::Vector{Float64}; index=:OSA)
+function evaluateZernike(X::AbstractArray{<: AbstractFloat,1}, J::Vector{Int},
+                         coefficients::Vector{T}; index=:OSA) where T
   D = [[Zernike(j,coord=:cartesian,index=index)(x,y) for x in X, y in X] for j in J ]
   return reduce(+,map(*,D,coefficients))
 end
 
-function evaluateZernike(n::Int, J::Int, coefficients::Float64; index=:OSA)
+function evaluateZernike(n::Int, J::Int, coefficients::T; index=:OSA) where T
   return evaluateZernike(n, [J], [coefficients]; index=index)
 end
 
-function evaluateZernike(X::AbstractArray{<: AbstractFloat,1}, J::Int, coefficients::Float64; index=:OSA)
+function evaluateZernike(X::AbstractArray{<: AbstractFloat,1}, J::Int, coefficients::T; index=:OSA) where T
   return evaluateZernike(X, [J], [coefficients]; index=index)
 end
 
