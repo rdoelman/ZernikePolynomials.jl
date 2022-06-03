@@ -6,12 +6,12 @@ using Test
     @testset "Sequential index conversion" begin
         @test mn2Noll(0,0) == 1
         @test mn2Noll(-1,3) == 7
-        @test isnan(mn2Noll(-1,0))
+        @test_throws ArgumentError mn2Noll(-1,0)
         @test mn2Noll(3,5) == 18
 
         @test mn2OSA(0,0) == 0
         @test mn2OSA(-1,3) == 7
-        @test isnan(mn2OSA(-1,0))
+        @test_throws ArgumentError mn2OSA(-1,0)
         @test mn2OSA(3,5) == 19
 
         @test all([mn2OSA(OSA2mn(i)...) for i in 0:30] .== collect(0:30))
