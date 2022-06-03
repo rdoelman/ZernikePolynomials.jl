@@ -37,7 +37,6 @@ Stacktrace:
 """
 function mn2OSA(m::Int,n::Int)
     if n < abs(m) || isodd(n-m)
-        # throw an error instead of NaN because of type instability
         throw(ArgumentError("Invalid combination of (m,n)=($m,$n) in OSA/ANSI indexing.")) 
     else
         return Int((1//2)*(n*(n+2)+m))
