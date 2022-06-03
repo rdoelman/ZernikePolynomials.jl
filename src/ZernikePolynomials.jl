@@ -343,7 +343,6 @@ function evaluateZernike(N::Int, J::Vector{Int}, coefficients::AbstractArray{T,1
     Y = range(-one(T), stop=one(T), length=N)'
 
     out_arr = zeros(T, N, N) 
-
     for j = 1:length(J)
         Z = Zernike(J[j], coord=:cartesian, index=index)
         out_arr .+= coefficients[j] .* Z.(X, Y)
@@ -364,8 +363,14 @@ julia> W = evaluateZernike(64,[5, 6],[0.3, 4.1])
 """
 function evaluateZernike(X::AbstractArray{<: AbstractFloat,1}, J::Vector{Int},
                          coefficients::Vector{T}; index=:OSA) where T
-  D = [[Zernike(j,coord=:cartesian,index=index)(x,y) for x in X, y in X] for j in J ]
-  return reduce(+,map(*,D,coefficients))
+    N = length(X)
+    out_arr = zeros(T, N, N) 
+    for j = 1:length(J)
+        Z = Zernike(J[j], coord=:cartesian, index=index)
+        out_arr .+= coefficients[j] .* Z.(X, X')
+    end
+    
+    return out_arr
 end
 
 function evaluateZernike(n::Int, J::Int, coefficients::T; index=:OSA) where T
