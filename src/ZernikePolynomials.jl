@@ -10,9 +10,9 @@ export mn2OSA, mn2Noll, OSA2mn, Noll2mn, Noll2OSA, OSA2Noll, Zernike, Zernikecoe
 """
     mn2OSA(m::Int,n::Int)
 
-Convert the integer pair (n,m) that defines the Zernike polynomial Z_n^m(ρ,θ) to the sequential OSA/ANSI stardard index number.
+Convert the integer pair (n,m) that defines the Zernike polynomial Z_n^m(ρ,θ) to the sequential OSA/ANSI standard index number.
 
-Returns NaN for invalid integer pairs.
+Throws an `ArgumentError` for invalid integer pairs.
 
 See also: [`mn2Noll`], [`OSA2mn`]
 
@@ -20,15 +20,28 @@ Source: "Standards for Reporting the Optical Aberrations of Eyes", Journal of Re
 
 # Example:
 ```julia-repl
-julia> [mn2OSA(n,m) for n in 0:4, m in -5:5]
+julia> mn2OSA(2,2)
+5
+
+julia> mn2OSA(1,1)
+2
+
+julia> mn2OSA(1,2)
+ERROR: ArgumentError: Invalid combination of (m,n)=(1,2) in OSA/ANSI indexing.
+Stacktrace:
+ [1] mn2OSA(m::Int64, n::Int64)
+   @ ZernikePolynomials ~/.julia/dev/ZernikePolynomials.jl/src/ZernikePolynomials.jl:29
+ [2] top-level scope
+   @ REPL[62]:1
 ```
 """
 function mn2OSA(m::Int,n::Int)
-  if n < abs(m) || isodd(n-m)
-    return NaN
-  else
-    return Int((1//2)*(n*(n+2)+m))
-  end
+    if n < abs(m) || isodd(n-m)
+        # throw an error instead of NaN because of type instability
+        throw(ArgumentError("Invalid combination of (m,n)=($m,$n) in OSA/ANSI indexing.")) 
+    else
+        return Int((1//2)*(n*(n+2)+m))
+    end
 end
 
 """
@@ -36,7 +49,7 @@ end
 
 Convert the integer pair (n,m) that defines the Zernike polynomial Z_n^m(ρ,θ) to the sequential Noll index number.
 
-Returns NaN for invalid integer pairs.
+Throws an `ArgumentError` for invalid integer pairs.
 
 See also: [`mn2OSA`], [`Noll2mn`]
 
@@ -44,12 +57,21 @@ Source: (https://en.wikipedia.org/wiki/Zernike_polynomials)
 
 # Example:
 ```julia-repl
-julia> [mn2Noll(n,m) for n in 0:4, m in -5:5]
+julia> mn2Noll(1,1)
+2
+
+julia> mn2Noll(1,2)
+ERROR: ArgumentError: Invalid combination of (m,n)=(1,2) in Noll indexing.
+Stacktrace:
+ [1] mn2Noll(m::Int64, n::Int64)
+   @ ZernikePolynomials ~/.julia/dev/ZernikePolynomials.jl/src/ZernikePolynomials.jl:53
+ [2] top-level scope
+   @ REPL[20]:1
 ```
 """
 function mn2Noll(m::Int,n::Int)
   if n < abs(m) || isodd(n-m)
-    return NaN
+    throw(ArgumentError("Invalid combination of (m,n)=($m,$n) in Noll indexing."))
   else
     if m > 0 && (mod(n,4) ∈ (0,1))
       p = 0
@@ -60,7 +82,7 @@ function mn2Noll(m::Int,n::Int)
     elseif m ≤ 0 && (mod(n,4) ∈ (0,1))
       p = 1
     else
-      error("Invalid combination of (m,n) in Noll indexing")
+        throw(ArgumentError("Invalid combination of (m,n)=($m,$n) in Noll indexing."))
     end
     return Int((1//2)*n*(n+1) + abs(m) + p)
   end
@@ -78,6 +100,18 @@ Source: "Standards for Reporting the Optical Aberrations of Eyes", Journal of Re
 # Example:
 ```julia-repl
 julia> [OSA2mn(j) for j in 0:10]
+11-element Vector{Tuple{Int64, Int64}}:
+ (0, 0)
+ (-1, 1)
+ (1, 1)
+ (-2, 2)
+ (0, 2)
+ (2, 2)
+ (-3, 3)
+ (-1, 3)
+ (1, 3)
+ (3, 3)
+ (-4, 4)
 ```
 """
 function OSA2mn(j::Int)
@@ -167,19 +201,30 @@ julia> R(1,1)
 ```
 """
 function R(::Type{T}, m::Int,n::Int) where T
-  p = s -> ((-1)^s * factorial(n-s))/ (factorial(s)*factorial(Int(0.5*(n+abs(m))-s))*factorial(Int(0.5*(n-abs(m))-s)))
-  f = x -> sum([p(s)*x.^(n-2s) for s in 0:Int((n-abs(m))/2)])
-  return f
+    p(s) = ((-1)^s * factorial(n-s)) / T(factorial(s) * factorial(Int(0.5 * (n+abs(m)) - s)) 
+                                        * factorial(Int(0.5 * (n-abs(m)) - s)))
+    # round brackets to be a generator instead of a Vector 
+    f(x) = sum((p(s) * x .^ (n-2s) for s in 0:Int((n-abs(m))/2)))
+    return f
 end
 
 function R(m::Int,n::Int) # radial polynomial
     R(Float64, m, n)
 end
 
+"""
+    normalization([T=Float64], m::Int, n::Int)
+
+Normalization constant of the zernike polynomial type `T`.
+"""
+function normalization(::Type{T}, m::Int, n::Int) where T
+    δ(x,y) = ifelse(x==y, one(T), zero(T))
+    c = sqrt(T(2)*(n+1) / (one(T) + δ(m,0)))
+    return c
+end
+
 function normalization(m::Int,n::Int) # normalization constant of the zernike polynomial
-  δ = (x,y) -> Int(x == y)
-  c = sqrt(2(n+1)/(1+δ(m,0)))
-  return c
+  return normalization(Float64, m, n)
 end
 
 """
@@ -197,22 +242,25 @@ julia> Z = Zernike(1,1,:cartesian)
 julia> Z(0.5,0.2)
 ```
 """
-function Zernike(m::Int,n::Int;coord=:polar)
-  δ = ρ -> (abs(ρ) <= 1.)
-  if m ≥ 0
-    Z = (ρ,θ) -> normalization(m,n)*R(m,n)(ρ) * cos(m*θ) * δ(ρ)
-  else
-    Z = (ρ,θ) -> -normalization(m,n)*R(m,n)(ρ) * sin(m*θ) * δ(ρ)
-  end
+function Zernike(m::Int, n::Int; coord=:polar)
+    δ(ρ) = eltype(ρ)(abs(ρ) <= 1)
+    
+    Z = let 
+        if m ≥ 0
+            (ρ, θ) ->   normalization(eltype(ρ), m,n) * R(eltype(ρ), m, n)(ρ) * cos(m*θ) * δ(ρ)
+        else
+            (ρ, θ) -> - normalization(eltype(ρ), m,n) * R(eltype(ρ), m, n)(ρ) * sin(m*θ) * δ(ρ)
+        end
+    end
 
-  if coord == :cartesian
-    g = (x,y) -> (sqrt(x.^2 + y.^2), atan(y,x))
-    return (x,y) -> Z(g(x,y)...)
-  elseif coord == :polar
-    return Z
-  else
-    error("Unrecognized coordinate system")
-  end
+    if coord == :cartesian
+        g(x,y) = (sqrt(x.^2 + y.^2), atan(y,x))
+        return (x,y) -> Z(g(x,y)...)
+    elseif coord == :polar
+        return Z
+    else
+        throw(ArgumentError("Unrecognized coordinate system $cord"))
+    end
 end
 
 """
