@@ -204,7 +204,7 @@ function R(::Type{T}, m::Int,n::Int) where T
     p(s) = ((-1)^s * factorial(n-s)) / T(factorial(s) * factorial(Int(0.5 * (n+abs(m)) - s)) 
                                         * factorial(Int(0.5 * (n-abs(m)) - s)))
     # round brackets to be a generator instead of a Vector 
-    f(x) = sum((p(s) * x .^ (n-2s) for s in 0:Int((n-abs(m))/2)))
+    f(x) = sum(p(s) * x .^ (n-2s) for s in 0:Int((n-abs(m))/2))
     return f
 end
 
@@ -243,7 +243,7 @@ julia> Z(0.5,0.2)
 ```
 """
 function Zernike(m::Int, n::Int; coord=:polar)
-    δ(ρ) = eltype(ρ)(abs(ρ) <= 1)
+    δ(ρ) = ifelse(abs(ρ) ≤ 1, one(eltype(ρ)), zero(eltype(ρ)))
     
     # use let block to prevent this bug https://github.com/JuliaLang/julia/issues/15276
     # further, we pass the types to normalization
@@ -323,6 +323,7 @@ function Zernikecoefficients(X::AbstractArray{<: AbstractFloat,1}, phase::Abstra
   end
 
   D = [[Zernike(j,coord=:cartesian,index=index)(x,y) for x in X, y in X] for j in J ]
+
   G = cat([D[i][:] for i in 1:length(J)]...; dims=2)
   return G \ view(phase, :)
 end
