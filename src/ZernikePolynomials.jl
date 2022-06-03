@@ -245,11 +245,15 @@ julia> Z(0.5,0.2)
 function Zernike(m::Int, n::Int; coord=:polar)
     δ(ρ) = eltype(ρ)(abs(ρ) <= 1)
     
+    # use let block to prevent this bug https://github.com/JuliaLang/julia/issues/15276
+    # further, we pass the types to normalization
     Z = let 
         if m ≥ 0
-            (ρ, θ) ->   normalization(eltype(ρ), m,n) * R(eltype(ρ), m, n)(ρ) * cos(m*θ) * δ(ρ)
+            (ρ, θ) -> (  normalization(promote_type(eltype(ρ), eltype(θ)), m,n) 
+                       * R(eltype(ρ), m, n)(ρ) * cos(m*θ) * δ(ρ))
         else
-            (ρ, θ) -> - normalization(eltype(ρ), m,n) * R(eltype(ρ), m, n)(ρ) * sin(m*θ) * δ(ρ)
+            (ρ, θ) -> (- normalization(promote_type(eltype(ρ), eltype(θ)), m,n)
+                       * R(eltype(ρ), m, n)(ρ) * sin(m*θ) * δ(ρ))
         end
     end
 
