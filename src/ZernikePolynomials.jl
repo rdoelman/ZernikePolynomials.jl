@@ -339,11 +339,17 @@ julia> W = evaluateZernike(64,[5, 6],[0.3, 4.1])
 ```
 """
 function evaluateZernike(N::Int, J::Vector{Int}, coefficients::AbstractArray{T,1}; index=:OSA) where T
-  X = range(-one(T), stop=one(T), length=N)
-  Y = range(-one(T), stop=one(T), length=N)
+    X = range(-one(T), stop=one(T), length=N)
+    Y = range(-one(T), stop=one(T), length=N)'
 
-  D = [[Zernike(j,coord=:cartesian,index=index)(x,y) for x in X, y in Y] for j in J ]
-  return reduce(+,map(*,D,coefficients))
+    out_arr = zeros(T, N, N) 
+
+    for j = 1:length(J)
+        Z = Zernike(J[j], coord=:cartesian, index=index)
+        out_arr .+= coefficients[j] .* Z.(X, Y)
+    end
+
+    return out_arr
 end
 
 """
