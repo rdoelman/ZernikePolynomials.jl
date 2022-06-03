@@ -69,22 +69,22 @@ Stacktrace:
 ```
 """
 function mn2Noll(m::Int,n::Int)
-  if n < abs(m) || isodd(n-m)
-    throw(ArgumentError("Invalid combination of (m,n)=($m,$n) in Noll indexing."))
-  else
-    if m > 0 && (mod(n,4) ∈ (0,1))
-      p = 0
-    elseif m < 0 && (mod(n,4) ∈ (2,3))
-      p = 0
-    elseif m ≥ 0 && (mod(n,4) ∈ (2,3))
-      p = 1
-    elseif m ≤ 0 && (mod(n,4) ∈ (0,1))
-      p = 1
-    else
+    if n < abs(m) || isodd(n-m)
         throw(ArgumentError("Invalid combination of (m,n)=($m,$n) in Noll indexing."))
+    else
+        if m > 0 && (mod(n,4) ∈ (0,1))
+            p = 0
+        elseif m < 0 && (mod(n,4) ∈ (2,3))
+            p = 0
+        elseif m ≥ 0 && (mod(n,4) ∈ (2,3))
+            p = 1
+        elseif m ≤ 0 && (mod(n,4) ∈ (0,1))
+            p = 1
+        else
+            throw(ArgumentError("Invalid combination of (m,n)=($m,$n) in Noll indexing."))
+        end
+        return Int((1//2)*n*(n+1) + abs(m) + p)
     end
-    return Int((1//2)*n*(n+1) + abs(m) + p)
-  end
 end
 
 """
@@ -114,9 +114,9 @@ julia> [OSA2mn(j) for j in 0:10]
 ```
 """
 function OSA2mn(j::Int)
-  n = Int(ceil((-3 + sqrt(9+8j))/2))
-  m = 2j-n*(n+2)
-  return (Int(m),Int(n))
+    n = Int(ceil((-3 + sqrt(9+8j))/2))
+    m = 2j-n*(n+2)
+    return (Int(m),Int(n))
 end
 
 """
@@ -134,26 +134,26 @@ julia> [OSA2mn(j) for j in 0:10]
 ```
 """
 function Noll2mn(j::Int)
-  n = Int(ceil((-3 + sqrt(1+8j))/2))
-  jr = j - Int(n*(n+1)/2)
-  if mod(n,4) ∈ (0,1)
-    m1 = jr
-    m2 = -(jr-1)
-    if iseven(n-m1)
-      m = m1
-    else
-      m = m2
+    n = Int(ceil((-3 + sqrt(1+8j))/2))
+    jr = j - Int(n*(n+1)/2)
+    if mod(n,4) ∈ (0,1)
+        m1 = jr
+        m2 = -(jr-1)
+        if iseven(n-m1)
+            m = m1
+        else
+            m = m2
+        end
+    else # mod(n,4) ∈ (2,3)
+        m1 = jr-1
+        m2 = -(jr)
+        if iseven(n-m1)
+            m = m1
+        else
+            m = m2
+        end
     end
-  else # mod(n,4) ∈ (2,3)
-    m1 = jr-1
-    m2 = -(jr)
-    if iseven(n-m1)
-      m = m1
-    else
-      m = m2
-    end
-  end
-  return (m,n)
+    return (m,n)
 end
 
 """
@@ -169,7 +169,7 @@ julia> [Noll2OSA(OSA2Noll(j)) for j = 0:10]
 ```
 """
 function Noll2OSA(j::Int)
-  return mn2OSA(Noll2mn(j)...)
+    return mn2OSA(Noll2mn(j)...)
 end
 
 """
@@ -185,7 +185,7 @@ julia> [Noll2OSA(OSA2Noll(j)...) for j = 0:10]
 ```
 """
 function OSA2Noll(j::Int)
-  return mn2Noll(OSA2mn(j)...)
+    return mn2Noll(OSA2mn(j)...)
 end
 
 
@@ -223,7 +223,7 @@ function normalization(::Type{T}, m::Int, n::Int) where T
 end
 
 function normalization(m::Int,n::Int) # normalization constant of the zernike polynomial
-  return normalization(Float64, m, n)
+    return normalization(Float64, m, n)
 end
 
 """
@@ -282,13 +282,13 @@ julia> Z(0.5,0.2)
 ```
 """
 function Zernike(j::Int;index=:OSA,coord=:polar)
-  if index == :OSA
-    return Zernike(OSA2mn(j)...,coord=coord)
-  elseif index == :Noll
-    return Zernike(Noll2mn(j)...,coord=coord)
-  else
-    error("Unknown Zernike sequential index")
-  end
+    if index == :OSA
+        return Zernike(OSA2mn(j)...,coord=coord)
+    elseif index == :Noll
+        return Zernike(Noll2mn(j)...,coord=coord)
+    else
+        error("Unknown Zernike sequential index")
+    end
 end
 
 """
@@ -299,13 +299,13 @@ The Zernike polynomials used are specified with an index vector J, according to 
 
 """
 function Zernikecoefficients(phase::AbstractArray{T,2}, J::Vector{Int}; index=:OSA) where T
-  s = size(phase)
-  X = range(-one(T), stop=one(T), length=s[1])
-  Y = range(-one(T), stop=one(T), length=s[2])
-
-  D = [[Zernike(j,coord=:cartesian,index=index)(x,y) for x in X, y in Y] for j in J ]
-  G = cat([D[i][:] for i in 1:length(J)]...; dims=2)
-  return G \ view(phase, :)
+    s = size(phase)
+    X = range(-one(T), stop=one(T), length=s[1])
+    Y = range(-one(T), stop=one(T), length=s[2])
+    
+    D = [[Zernike(j,coord=:cartesian,index=index)(x,y) for x in X, y in Y] for j in J ]
+    G = cat([D[i][:] for i in 1:length(J)]...; dims=2)
+    return G \ view(phase, :)
 end
 
 """
@@ -316,15 +316,15 @@ The Zernike polynomials used are specified with an index vector J, according to 
 
 """
 function Zernikecoefficients(X::AbstractArray{<: AbstractFloat,1}, phase::AbstractArray{Float64,2}, J::Vector{Int}; index=:OSA)
-  s = size(phase)
-  if !(s[1] == s[2] && s[1] == length(X))
-    error("Non-matching size")
-  end
-
-  D = [[Zernike(j,coord=:cartesian,index=index)(x,y) for x in X, y in X] for j in J ]
-
-  G = cat([D[i][:] for i in 1:length(J)]...; dims=2)
-  return G \ view(phase, :)
+    s = size(phase)
+    if !(s[1] == s[2] && s[1] == length(X))
+        error("Non-matching size")
+    end
+    
+    D = [[Zernike(j,coord=:cartesian,index=index)(x,y) for x in X, y in X] for j in J ]
+    
+    G = cat([D[i][:] for i in 1:length(J)]...; dims=2)
+    return G \ view(phase, :)
 end
 
 """
@@ -373,11 +373,11 @@ function evaluateZernike(X::AbstractArray{<: AbstractFloat,1}, J::Vector{Int},
 end
 
 function evaluateZernike(n::Int, J::Int, coefficients::T; index=:OSA) where T
-  return evaluateZernike(n, [J], [coefficients]; index=index)
+    return evaluateZernike(n, [J], [coefficients]; index=index)
 end
 
 function evaluateZernike(X::AbstractArray{<: AbstractFloat,1}, J::Int, coefficients::T; index=:OSA) where T
-  return evaluateZernike(X, [J], [coefficients]; index=index)
+    return evaluateZernike(X, [J], [coefficients]; index=index)
 end
 
 end # module
