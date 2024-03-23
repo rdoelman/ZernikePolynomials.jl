@@ -1,141 +1,118 @@
 module ZernikePolynomials
 
-
-export mn2OSA, mn2Noll, OSA2mn, Noll2mn, Noll2OSA, OSA2Noll, Zernike, Zernikecoefficients, evaluateZernike, normalization
+export ZernikeIndex, NM, OSA, Noll, zernike, zernikecoefficients, evaluatezernike, normalization
 
 # Zernike polynomial-based functions
 # Some formulas from Wikipedia, some from: "Standards for Reporting the Optical Aberrations of Eyes", Journal of Refractive Surgery Volume 18 September/October 2002
 # Reinier Doelman, 23-12-2018
 
+## Represent the different numbering schemes
+
 """
-    mn2OSA(m::Int,n::Int)
+    ZernikeIndex
 
-Convert the integer pair (n,m) that defines the Zernike polynomial Z_n^m(ρ,θ) to the sequential OSA/ANSI standard index number.
+An abstract type for specifying the index of a Zernike polynomial. Valid subtypes are [`NM`](@ref), [`Noll`](@ref), and [`OSA`](@ref).
+"""
+abstract type ZernikeIndex end
 
-Throws an `ArgumentError` for invalid integer pairs.
+Base.convert(::Type{T}, zi::T) where T <: ZernikeIndex = zi
+Base.convert(::Type{T}, zi::ZernikeIndex) where T <: ZernikeIndex = T(zi)
 
-See also: [`mn2Noll`], [`OSA2mn`]
+"""
+    NM(n::Integer, m::Integer)
+    NM(noll::Noll)       # construct from Noll index
+    NM(osa::OSA)         # construct from OSA index
 
-Source: "Standards for Reporting the Optical Aberrations of Eyes", Journal of Refractive Surgery Volume 18 September/October 2002
+The integer pair that defines a Zernike polynomial `Zₙᵐ(ρ,θ)`.
+
+See also: [`Noll`](@ref), [`OSA`](@ref)
 
 # Example:
 ```julia-repl
-julia> mn2OSA(2,2)
-5
-
-julia> mn2OSA(1,1)
-2
-
-julia> mn2OSA(1,2)
-ERROR: ArgumentError: Invalid combination of (m,n)=(1,2) in OSA/ANSI indexing.
-Stacktrace:
- [1] mn2OSA(m::Int64, n::Int64)
-   @ ZernikePolynomials ~/.julia/dev/ZernikePolynomials.jl/src/ZernikePolynomials.jl:29
- [2] top-level scope
-   @ REPL[62]:1
-```
+julia> NM.(OSA.(0:9))
+10-element Vector{NM}:
+ NM(0, 0)
+ NM(1, -1)
+ NM(1, 1)
+ NM(2, -2)
+ NM(2, 0)
+ NM(2, 2)
+ NM(3, -3)
+ NM(3, -1)
+ NM(3, 1)
+ NM(3, 3)
 """
-function mn2OSA(m::Int,n::Int)
-    if n < abs(m) || isodd(n-m)
-        throw(ArgumentError("Invalid combination of (m,n)=($m,$n) in OSA/ANSI indexing.")) 
-    else
-        return Int((1//2)*(n*(n+2)+m))
+struct NM <: ZernikeIndex
+    n::Int8
+    m::Int8
+
+    function NM(n::Integer, m::Integer)
+        (n < abs(m) || isodd(n-m)) && throw(ArgumentError("Invalid Zernike index pair (n,m)=($n,$m)."))
+        return new(n, m)
     end
 end
 
 """
-    mn2Noll(m::Int,n::Int)
+    Noll(j::Integer)
+    Noll(nm::NM)         # construct from NM index
+    Noll(osa::OSA)       # construct from OSA index
 
-Convert the integer pair (n,m) that defines the Zernike polynomial Z_n^m(ρ,θ) to the sequential Noll index number.
+The Noll single-index number that defines a Zernike polynomial.
 
-Throws an `ArgumentError` for invalid integer pairs.
-
-See also: [`mn2OSA`], [`Noll2mn`]
-
-Source: (https://en.wikipedia.org/wiki/Zernike_polynomials)
-
-# Example:
-```julia-repl
-julia> mn2Noll(1,1)
-2
-
-julia> mn2Noll(1,2)
-ERROR: ArgumentError: Invalid combination of (m,n)=(1,2) in Noll indexing.
-Stacktrace:
- [1] mn2Noll(m::Int64, n::Int64)
-   @ ZernikePolynomials ~/.julia/dev/ZernikePolynomials.jl/src/ZernikePolynomials.jl:53
- [2] top-level scope
-   @ REPL[20]:1
-```
+See also: [`NM`](@ref), [`OSA`](@ref)
 """
-function mn2Noll(m::Int,n::Int)
-    if n < abs(m) || isodd(n-m)
-        throw(ArgumentError("Invalid combination of (m,n)=($m,$n) in Noll indexing."))
-    else
-        if m > 0 && (mod(n,4) ∈ (0,1))
-            p = 0
-        elseif m < 0 && (mod(n,4) ∈ (2,3))
-            p = 0
-        elseif m ≥ 0 && (mod(n,4) ∈ (2,3))
-            p = 1
-        elseif m ≤ 0 && (mod(n,4) ∈ (0,1))
-            p = 1
-        else
-            throw(ArgumentError("Invalid combination of (m,n)=($m,$n) in Noll indexing."))
-        end
-        return Int((1//2)*n*(n+1) + abs(m) + p)
+struct Noll <: ZernikeIndex
+    j::Int16
+
+    function Noll(j::Integer)
+        j >= 1 || throw(ArgumentError("Invalid Noll index $j."))
+        return new(j)
     end
+end
+function Noll(nm::NM)
+    m, n = nm.m, nm.n
+    p = if mod(n, 4) ∈ (0, 1)
+        m > 0 ? 0 : 1
+    else
+        m ≥ 0 ? 1 : 0
+    end
+    return Noll(Int((1//2)*n*(n+1) + abs(m) + p))
 end
 
 """
-    OSA2mn(j::Int)
+    OSA(j::Integer)
+    OSA(nm::NM)
+    OSA(noll::Noll)
 
-Convert the sequential OSA/ANSI stardard index number j to the integer pair (n,m) that defines the Zernike polynomial Z_n^m(ρ,θ).
+The OSA/ANSI single-index number that defines a Zernike polynomial.
 
-See also: [`Noll2mn`], [`mn2OSA`], [`OSA2Noll`]
-
-Source: "Standards for Reporting the Optical Aberrations of Eyes", Journal of Refractive Surgery Volume 18 September/October 2002
-
-# Example:
-```julia-repl
-julia> [OSA2mn(j) for j in 0:10]
-11-element Vector{Tuple{Int64, Int64}}:
- (0, 0)
- (-1, 1)
- (1, 1)
- (-2, 2)
- (0, 2)
- (2, 2)
- (-3, 3)
- (-1, 3)
- (1, 3)
- (3, 3)
- (-4, 4)
-```
+See also: [`NM`](@ref), [`Noll`](@ref)
 """
-function OSA2mn(j::Int)
-    n = Int(ceil((-3 + sqrt(9+8j))/2))
+struct OSA <: ZernikeIndex
+    j::Int16
+
+    function OSA(j::Integer)
+        j >= 0 || throw(ArgumentError("Invalid OSA index $j."))
+        return new(j)
+    end
+end
+
+OSA(nm::NM) = ((m, n) = (nm.m, nm.n); OSA(Int((1//2)*(n*(n+2)+m))))
+
+
+# Other conversions
+
+function NM(osa::OSA)
+    j = osa.j
+    n = ceil(Int, (-3 + sqrt(9+8j))/2)
     m = 2j-n*(n+2)
-    return (Int(m),Int(n))
+    return NM(n, m)
 end
 
-"""
-    Noll2mn(j::Int)
-
-Convert the Noll index number j to the integer pair (n,m) that defines the Zernike polynomial Z_n^m(ρ,θ).
-
-See also: [`OSA2mn`], [`mn2Noll`], [`Noll2OSA`]
-
-Source: (https://en.wikipedia.org/wiki/Zernike_polynomials)
-
-# Example:
-```julia-repl
-julia> [OSA2mn(j) for j in 0:10]
-```
-"""
-function Noll2mn(j::Int)
+function NM(noll::Noll)
+    j = noll.j
     n = Int(ceil((-3 + sqrt(1+8j))/2))
-    jr = j - Int(n*(n+1)/2)
+    jr = j - Int(n*(n+1)//2)
     if mod(n,4) ∈ (0,1)
         m1 = jr
         m2 = -(jr-1)
@@ -153,106 +130,81 @@ function Noll2mn(j::Int)
             m = m2
         end
     end
-    return (m,n)
+    return NM(n, m)
 end
 
+Noll(osa::OSA) = Noll(NM(osa))
+OSA(noll::Noll) = OSA(NM(noll))
+
+## Zernike polynomials
+
 """
-    Noll2OSA(j::Int)
+    R(zi::ZernikeIndex)
 
-Convert the Noll index number j to the OSA/ANSI stardard index number for Zernike polynomials.
-
-See also: [`OSA2Noll`], [`Noll2mn`]
+Obtain the function ρ -> Rₙ^|m|(ρ), where R is the radial polynomial in Zernike polynomials.
 
 # Example:
 ```julia-repl
-julia> [Noll2OSA(OSA2Noll(j)) for j = 0:10]
+julia> rfunc = R(NM(1,1));
+
+julia> rfunc(0.5)
+0.5
 ```
 """
-function Noll2OSA(j::Int)
-    return mn2OSA(Noll2mn(j)...)
-end
-
-"""
-    OSA2Noll(j::Int)
-
-Convert OSA/ANSI stardard index number to the Noll index number for Zernike polynomials.
-
-See also: [`OSA2Noll`], [`Noll2mn`]
-
-# Example:
-```julia-repl
-julia> [Noll2OSA(OSA2Noll(j)...) for j = 0:10]
-```
-"""
-function OSA2Noll(j::Int)
-    return mn2Noll(OSA2mn(j)...)
-end
-
-
-"""
-    R([T=Float64], m::Int,n::Int)
-
-Obtain the function ρ -> R_n^|m|(ρ), where R is the radial polynomial in Zernike polynomials
-
-# Example:
-```julia-repl
-julia> R(1,1)
-```
-"""
-function R(::Type{T}, m::Int,n::Int) where T
-    p(s) = ((-1)^s * factorial(n-s)) / T(factorial(s) * factorial(Int(0.5 * (n+abs(m)) - s)) 
+function R(::Type{T}, nm::NM) where T
+    m, n = nm.m, nm.n
+    p(s) = ((-1)^s * factorial(n-s)) / T(factorial(s) * factorial(Int(0.5 * (n+abs(m)) - s))
                                         * factorial(Int(0.5 * (n-abs(m)) - s)))
-    # round brackets to be a generator instead of a Vector 
+    # round brackets to be a generator instead of a Vector
     f(x) = sum(p(s) * x .^ (n-2s) for s in 0:Int((n-abs(m))/2))
     return f
-end
 
-function R(m::Int,n::Int) # radial polynomial
-    R(Float64, m, n)
 end
+R(::Type{T}, zi::ZernikeIndex) where T = R(T, NM(zi))
+R(zi::ZernikeIndex) = R(Float64, zi)
 
 """
-    normalization([T=Float64], m::Int, n::Int)
+    normalization(zi::ZernikeIndex)
 
-Normalization constant of the zernike polynomial type `T`.
+Normalization constant of the zernike polynomial.
 """
-function normalization(::Type{T}, m::Int, n::Int) where T
+function normalization(::Type{T}, nm::NM) where T
+    m, n = nm.m, nm.n
     δ(x,y) = ifelse(x==y, one(T), zero(T))
     c = sqrt(T(2)*(n+1) / (one(T) + δ(m,0)))
     return c
 end
-
-function normalization(m::Int,n::Int) # normalization constant of the zernike polynomial
-    return normalization(Float64, m, n)
-end
+normalization(::Type{T}, zi::ZernikeIndex) where T = normalization(T, NM(zi))
+normalization(zi::ZernikeIndex) = normalization(Float64, zi)
 
 """
-    Zernike(m::Int,n::Int;coord=:polar)
+    zernike(zi::ZernikeIndex; coord=:polar)
 
-Obtain the function (ρ,θ) -> Z_n^m(ρ,θ), where Z is the Zernike polynomial with coefficients n and m. ρ is the radius and θ the angle.
+Obtain the function `(ρ,θ) -> Zₙᵐ(ρ,θ)`, where `Zₙᵐ` is the Zernike polynomial corresponding to `zi`. `ρ` is the radius and `θ` the angle.
 
-If coord=:cartesian the function is (x,y) -> Z_n^m(x,y) in Cartesian coordinates.
+If coord=:cartesian the function is `(x,y) -> Zₙᵐ(x,y)` in Cartesian coordinates.
 
 # Example:
 ```julia-repl
-julia> Zernike(1,1)
-julia> Zernike(1,1,coord=:polar)
-julia> Z = Zernike(1,1,:cartesian)
-julia> Z(0.5,0.2)
+julia> zernike(NM(1,1))
+julia> zernike(NM(1,1); coord=:polar)
+julia> Z = zernike(NM(1,1); coord=:cartesian)  # Z is a polynomial
+julia> Z(0.5,0.2)                              # evaluate the polynomial at given (x, y)
 ```
 """
-function Zernike(m::Int, n::Int; coord=:polar)
+function zernike(nm::NM; coord=:polar)
     δ(ρ) = ifelse(abs(ρ) ≤ 1, one(eltype(ρ)), zero(eltype(ρ)))
-    
+
+    m, n = nm.m, nm.n
     # use let block to prevent this bug https://github.com/JuliaLang/julia/issues/15276
     # further, we pass the types to normalization
-    Z = let 
+    Z = let
         if m ≥ 0
-            (ρ, θ) -> (  normalization(promote_type(eltype(ρ), eltype(θ)), m,n) 
-                       * R(eltype(ρ), m, n)(ρ) * cos(m*θ) * δ(ρ))
+            (ρ, θ) -> (  normalization(promote_type(eltype(ρ), eltype(θ)), nm)
+                       * R(eltype(ρ), nm)(ρ) * cos(m*θ) * δ(ρ))
         else
-            (ρ, θ) -> (- normalization(promote_type(eltype(ρ), eltype(θ)), m,n)
-                       * R(eltype(ρ), m, n)(ρ) * sin(m*θ) * δ(ρ))
+            (ρ, θ) -> (- normalization(promote_type(eltype(ρ), eltype(θ)), nm)
+                       * R(eltype(ρ), nm)(ρ) * sin(m*θ) * δ(ρ))
         end
     end
 
@@ -262,122 +214,84 @@ function Zernike(m::Int, n::Int; coord=:polar)
     elseif coord == :polar
         return Z
     else
-        throw(ArgumentError("Unrecognized coordinate system $cord"))
+        throw(ArgumentError("Unrecognized coordinate system $coord"))
     end
 end
+zernike(zi::ZernikeIndex; kwargs...) = zernike(NM(zi); kwargs...)
 
 """
-    Zernike(j::Int;index=:OSA,coord=:polar)
-
-Obtain the function (ρ,θ) -> Z_j(ρ,θ), where Z is the Zernike polynomial with sequential index j, according to the indexing by :OSA or :Noll.
-
-If coord=:cartesian the function is (x,y) -> Z_j(x,y) in Cartesian coordinates.
-
-# Example:
-```julia-repl
-julia> Zernike(1)
-julia> Zernike(1,coord=:polar)
-julia> Z = Zernike(5,index=:Noll,coord=:cartesian)
-julia> Z(0.5,0.2)
-```
-"""
-function Zernike(j::Int;index=:OSA,coord=:polar)
-    if index == :OSA
-        return Zernike(OSA2mn(j)...,coord=coord)
-    elseif index == :Noll
-        return Zernike(Noll2mn(j)...,coord=coord)
-    else
-        error("Unknown Zernike sequential index")
-    end
-end
-
-"""
-    Zernikecoefficients(phase::AbstractArray{Float64,2}, J::Vector{Int}; index=:OSA)
+    zernikecoefficients(x::AbstractVector, y::AbstractVector, phase::AbstractMatrix, J::AbstractVector{<:ZernikeIndex})
+    zernikecoefficients(x::AbstractVector, phase::AbstractMatrix, J::AbstractVector{<:ZernikeIndex})
+    zernikecoefficients(phase::AbstractMatrix, J::AbstractVector{<:ZernikeIndex})
 
 Compute the Zernike coefficients (OSA normalization) that in a least-squares sense optimally describe the phase.
-The Zernike polynomials used are specified with an index vector J, according to OSA indexing.
+The Zernike polynomials used are specified with an index vector `J`.
 
+The default for `x` and `y` is to span pupil coordinates from -1 to 1. If only `x` is supplied, it is also used for `y`.
 """
-function Zernikecoefficients(phase::AbstractArray{T,2}, J::Vector{Int}; index=:OSA) where T
+function zernikecoefficients(X::AbstractVector{<:Real}, Y::AbstractVector{<:Real}, phase::AbstractArray{T,2}, J::AbstractVector{<:ZernikeIndex}) where T
+    (length(X), length(Y)) == size(phase) || throw(DimensionMismatch("Size of phase array $(size(phase)) does not match the grid size $(length(X))×$(length(Y))"))
+
+    G = zeros(T, length(X)*length(Y), length(J))
+    i = 0
+    for j in J
+        Z = zernike(j; coord=:cartesian)
+        G[:, i+=1] = vec([Z(x, y) for x in X, y in Y])
+    end
+    return G \ vec(phase)
+end
+zernikecoefficients(x::AbstractVector, phase::AbstractArray{T,2}, J::AbstractVector{<:ZernikeIndex}) where T =
+    zernikecoefficients(x, x, phase, J)
+
+function zernikecoefficients(phase::AbstractArray{T,2}, J::AbstractVector{<:ZernikeIndex}) where T
     s = size(phase)
     X = range(-one(T), stop=one(T), length=s[1])
     Y = range(-one(T), stop=one(T), length=s[2])
-    
-    D = [[Zernike(j,coord=:cartesian,index=index)(x,y) for x in X, y in Y] for j in J ]
-    G = cat([D[i][:] for i in 1:length(J)]...; dims=2)
-    return G \ view(phase, :)
+    return zernikecoefficients(X, Y, phase, J)
 end
 
 """
-    Zernikecoefficients(x::AbstractArray{<: AbstractFloat,1}, phase::AbstractArray{Float64,2}, J::Vector{Int}; index=:OSA)
+    evaluatezernike(x::AbstractVector, y::AbstractVector, J::AbstractVector{<:ZernikeIndex}, coefficients::AbstractVector)
+    evaluatezernike(N::Int, J::AbstractVector{<:ZernikeIndex}, coefficients::AbstractVector)
 
-Compute the Zernike coefficients (OSA normalization) that in a least-squares sense optimally describe the phase.
-The Zernike polynomials used are specified with an index vector J, according to OSA indexing.
+Evaluate the sum of zernike polynomials on a grid specified by `x` and `y`. The coefficient of Zernike polynomial `J[i]` is `coefficients[i]`.
 
-"""
-function Zernikecoefficients(X::AbstractArray{<: AbstractFloat,1}, phase::AbstractArray{Float64,2}, J::Vector{Int}; index=:OSA)
-    s = size(phase)
-    if !(s[1] == s[2] && s[1] == length(X))
-        error("Non-matching size")
-    end
-    
-    D = [[Zernike(j,coord=:cartesian,index=index)(x,y) for x in X, y in X] for j in J ]
-    
-    G = cat([D[i][:] for i in 1:length(J)]...; dims=2)
-    return G \ view(phase, :)
-end
-
-"""
-    evaluateZernike(N::Int, J::Vector{Int}, coefficients::Vector{Float64}; index=:OSA)
-
-Evaluate the Zernike polynomials on an N-by-N grid as specified by the Zernike coefficients of the polynomials J
+Alternatively, specify the grid size `N`, and the grid will be `N`x`N` with `x` and `y` spanning from -1 to 1.
 
 # Example:
 ```julia-repl
-julia> W = evaluateZernike(64,[5, 6],[0.3, 4.1])
+julia> W = evaluatezernike(64, OSA.[5, 6], [0.3, 4.1])
 ```
 """
-function evaluateZernike(N::Int, J::Vector{Int}, coefficients::AbstractArray{T,1}; index=:OSA) where T
-    X = range(-one(T), stop=one(T), length=N)
-    Y = range(-one(T), stop=one(T), length=N)'
+function evaluatezernike(x::AbstractVector, y::AbstractVector, J::AbstractVector{<:ZernikeIndex}, coefficients::AbstractVector{T}) where T
+    length(J) == length(coefficients) || throw(ArgumentError("Length of `J` and `coefficients` must match, got $(length(J)) and $(length(coefficients))"))
 
-    out_arr = zeros(T, N, N) 
-    for j = 1:length(J)
-        Z = Zernike(J[j], coord=:cartesian, index=index)
-        out_arr .+= coefficients[j] .* Z.(X, Y)
+    out_arr = zeros(T, length(x), length(y))
+    for (j, c) in zip(J, coefficients)
+        Z = zernike(j; coord=:cartesian)
+        out_arr .+= c .* Z.(x, y')
     end
 
     return out_arr
 end
+evaluatezernike(x::AbstractVector, J::AbstractVector{<:ZernikeIndex}, coefficients::AbstractVector{T}) where T =
+    evaluatezernike(x, x, J, coefficients)
 
-"""
-    evaluateZernike(x::AbstractArray{<: AbstractFloat,1}, J::Vector{Int}, coefficients::Vector{Float64}; index=:OSA)
-
-Evaluate the Zernike polynomials on a grid as specified by the Zernike coefficients of the polynomials J, on a grid with points in x
-
-# Example:
-```julia-repl
-julia> W = evaluateZernike(64,[5, 6],[0.3, 4.1])
-```
-"""
-function evaluateZernike(X::AbstractArray{<: AbstractFloat,1}, J::Vector{Int},
-                         coefficients::Vector{T}; index=:OSA) where T
-    N = length(X)
-    out_arr = zeros(T, N, N) 
-    for j = 1:length(J)
-        Z = Zernike(J[j], coord=:cartesian, index=index)
-        out_arr .+= coefficients[j] .* Z.(X, X')
-    end
-    
-    return out_arr
+function evaluatezernike(N::Int, J::AbstractVector{<:ZernikeIndex}, coefficients::AbstractVector{T}) where T
+    x = range(-one(T), stop=one(T), length=N)
+    y = range(-one(T), stop=one(T), length=N)
+    return evaluatezernike(x, y, J, coefficients)
 end
 
-function evaluateZernike(n::Int, J::Int, coefficients::T; index=:OSA) where T
-    return evaluateZernike(n, [J], [coefficients]; index=index)
+
+
+function evaluatezernike(x, y, zi::ZernikeIndex, coefficients::Real)
+    return evaluatezernike(x, y, [zi], [coefficients])
+end
+function evaluatezernike(n, zi::ZernikeIndex, coefficients::Real)
+    return evaluatezernike(n, [zi], [coefficients])
 end
 
-function evaluateZernike(X::AbstractArray{<: AbstractFloat,1}, J::Int, coefficients::T; index=:OSA) where T
-    return evaluateZernike(X, [J], [coefficients]; index=index)
-end
+include("deprecations.jl")   # delete this when the next breaking release is made
 
 end # module

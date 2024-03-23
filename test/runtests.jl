@@ -16,16 +16,18 @@ using Test
 
         @test all([mn2OSA(OSA2mn(i)...) for i in 0:30] .== collect(0:30))
         @test all([mn2Noll(Noll2mn(i)...) for i in 1:31] .== collect(1:31))
+
+        @test convert(NM, OSA(6)) === NM(OSA(6)) === NM(3, -3)
     end
-    
+
     @testset "Type stability" begin
         Z = Zernike(4,4,coord=:cartesian)
         @test Z(0.2, 0.1) ≈ -0.002213594362117866
-        @test Z(0.2f0, 0.1f0) ≈ -0.0022135945f0 
-        @test typeof(Z(0.2f0, 0.1f0)) == Float32 
-        @test typeof(Z(0.2, 0.1)) == Float64 
+        @test Z(0.2f0, 0.1f0) ≈ -0.0022135945f0
+        @test typeof(Z(0.2f0, 0.1f0)) == Float32
+        @test typeof(Z(0.2, 0.1)) == Float64
 
-        @test typeof(ZernikePolynomials.R(Float32, 1,1)(1)) == Float32 
+        @test typeof(ZernikePolynomials.R(Float32, 1,1)(1)) == Float32
         @test typeof(ZernikePolynomials.R(Float32, 1,1)(1.0)) == Float64
         @test typeof(ZernikePolynomials.R(Float64, 1,1)(1.0)) == Float64
         @test typeof(ZernikePolynomials.R(Float64, 1,1)(1.0f0)) == Float64
@@ -33,7 +35,7 @@ using Test
 
         @test typeof(normalization(Float32, 1,1)) == Float32
         @test typeof(normalization(ComplexF32, 1,1)) == ComplexF32
-        @test typeof(normalization(1,1)) == Float64 
+        @test typeof(normalization(1,1)) == Float64
     end
 
     @testset "Generation of Zernike polynomials" begin
