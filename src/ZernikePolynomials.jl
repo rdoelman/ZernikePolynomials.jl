@@ -292,6 +292,4 @@ function evaluatezernike(n, zi::ZernikeIndex, coefficients::Real)
     return evaluatezernike(n, [zi], [coefficients])
 end
 
-include("deprecations.jl")   # delete this when the next breaking release is made
-
 end # module
