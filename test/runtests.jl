@@ -63,5 +63,3 @@ using Test
         @test zernikecoefficients(ϕ, OSA.([1, 2, 3])) ≈ [0.0, 0.5,0.3]
     end
 end
-
-include("deprecations.jl")
