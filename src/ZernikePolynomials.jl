@@ -1,6 +1,6 @@
 module ZernikePolynomials
 
-export ZernikeIndex, NM, OSA, Noll, zernike, zernikecoefficients, evaluatezernike, normalization
+export ZernikeIndex, NM, OSA, Noll, Fringe, zernike, zernikecoefficients, evaluatezernike, normalization
 
 # Zernike polynomial-based functions
 # Some formulas from Wikipedia, some from: "Standards for Reporting the Optical Aberrations of Eyes", Journal of Refractive Surgery Volume 18 September/October 2002
@@ -22,10 +22,11 @@ Base.convert(::Type{T}, zi::ZernikeIndex) where T <: ZernikeIndex = T(zi)
     NM(n::Integer, m::Integer)
     NM(noll::Noll)       # construct from Noll index
     NM(osa::OSA)         # construct from OSA index
+    NM(fringe::Fringe)   # construct from Fringe index
 
 The integer pair that defines a Zernike polynomial `Zₙᵐ(ρ,θ)`.
 
-See also: [`Noll`](@ref), [`OSA`](@ref)
+See also: [`Noll`](@ref), [`OSA`](@ref), [`Fringe`](@ref)
 
 # Example:
 ```julia-repl
@@ -41,6 +42,7 @@ julia> NM.(OSA.(0:9))
  NM(3, -1)
  NM(3, 1)
  NM(3, 3)
+```
 """
 struct NM <: ZernikeIndex
     n::Int8
@@ -56,10 +58,11 @@ end
     Noll(j::Integer)
     Noll(nm::NM)         # construct from NM index
     Noll(osa::OSA)       # construct from OSA index
+    Noll(fringe::Fringe) # construct from Fringe index
 
 The Noll single-index number that defines a Zernike polynomial.
 
-See also: [`NM`](@ref), [`OSA`](@ref)
+See also: [`NM`](@ref), [`OSA`](@ref), [`Fringe`](@ref)
 """
 struct Noll <: ZernikeIndex
     j::Int16
@@ -69,6 +72,7 @@ struct Noll <: ZernikeIndex
         return new(j)
     end
 end
+
 function Noll(nm::NM)
     m, n = nm.m, nm.n
     p = if mod(n, 4) ∈ (0, 1)
@@ -76,17 +80,19 @@ function Noll(nm::NM)
     else
         m ≥ 0 ? 1 : 0
     end
-    return Noll(Int((1//2)*n*(n+1) + abs(m) + p))
+    j = n * (n + 1) ÷ 2 + abs(m) + p
+    return Noll(j)
 end
 
 """
     OSA(j::Integer)
-    OSA(nm::NM)
-    OSA(noll::Noll)
+    OSA(nm::NM)          # construct from NM index
+    OSA(noll::Noll)      # construct from OSA index
+    OSA(fringe::Fringe)  # construct from Fringe index
 
 The OSA/ANSI single-index number that defines a Zernike polynomial.
 
-See also: [`NM`](@ref), [`Noll`](@ref)
+See also: [`NM`](@ref), [`Noll`](@ref), [`Fringe`](@ref)
 """
 struct OSA <: ZernikeIndex
     j::Int16
@@ -97,8 +103,50 @@ struct OSA <: ZernikeIndex
     end
 end
 
-OSA(nm::NM) = ((m, n) = (nm.m, nm.n); OSA(Int((1//2)*(n*(n+2)+m))))
+function OSA(nm::NM)
+    m, n = nm.m, nm.n
+    j = (n * (n + 2) + m) ÷ 2
+    return OSA(j)
+end
 
+"""
+    Fringe(j::Integer)
+    Fringe(nm::NM)       # construct from NM index
+    Fringe(noll::Noll)   # construct from Noll index
+    Fringe(osa::OSA)     # construct from OSA index
+
+Set of 37 Zernike polynomials commonly used in optical design software and photolithography.
+
+Beware that the Fringe set is traditionally unnormalized.
+
+See also: [`NM`](@ref), [`Noll`](@ref), [`OSA`](@ref)
+"""
+struct Fringe <: ZernikeIndex
+    j::Int16
+
+    function Fringe(j::Integer)
+        0 <= j <= 36 || throw(ArgumentError("Invalid Fringe index $j."))
+        return new(j)
+    end
+end
+
+function Fringe(nm::NM)
+    m, n = nm.m, nm.n
+    if n + abs(m) > 10
+        if (n == 12 && m == 0)
+            return Fringe(36)
+        else
+            throw(ArgumentError("No Fringe index corresponding to Zernike pair (n,m)=($n,$m)."))
+        end
+    end
+    if m < 0
+        p = 0
+    else
+        p = -1
+    end
+    j = (1 + (n + abs(m)) ÷ 2)^2 - 2 * abs(m) + p
+    return Fringe(j)
+end
 
 # Other conversions
 
@@ -133,8 +181,26 @@ function NM(noll::Noll)
     return NM(n, m)
 end
 
+function NM(fringe::Fringe)
+    j = fringe.j
+    if j == 36
+        return NM(12, 0)
+    end
+    N = floor(Int, sqrt(j))
+    c = (j-N^2) ÷ 2
+    n = N+c
+    m = (-1)^(j+N) * (N-c)
+    return NM(n, m)
+end
+
 Noll(osa::OSA) = Noll(NM(osa))
+Noll(fringe::Fringe) = Noll(NM(fringe))
+
 OSA(noll::Noll) = OSA(NM(noll))
+OSA(fringe::Fringe) = OSA(NM(fringe))
+
+Fringe(noll::Noll) = Fringe(NM(noll))
+Fringe(osa::OSA) = Fringe(NM(osa))
 
 ## Zernike polynomials
 

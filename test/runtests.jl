@@ -15,6 +15,13 @@ using Test
 
         @test all([OSA(NM(OSA(i))) for i in 0:30] .== OSA.(0:30))
         @test all([Noll(NM(Noll(i))) for i in 1:31] .== Noll.(1:31))
+        @test all([Fringe(NM(Fringe(i))) for i in 0:36] .== Fringe.(0:36))
+
+        @test_throws ArgumentError Fringe(37)
+        @test Fringe(NM(0,0)) === Fringe(0)
+        @test Fringe(NM(3,-3)) === Fringe(10)
+        @test Fringe(NM(6,2)) === Fringe(20)
+        @test Fringe(NM(7,-3)) === Fringe(30)
 
         @test convert(NM, OSA(6)) === NM(OSA(6)) === NM(3, -3)
     end

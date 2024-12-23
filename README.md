@@ -7,16 +7,16 @@ It features the following:
 - functions to evaluate the polynomials on a grid
 - functions to estimate Zernike coefficients in a least squares sense from a user-provided input.
 
-## Conversion to and between (Noll & OSA/ANSI) sequential indices
+## Conversion to and between sequential indices
 
-This package provides conversion utility functions between three common ways of specifying a Zernike polynomial.
+This package provides conversion utility functions between four common ways of specifying a Zernike polynomial.
+
+* Use `NM(n, m)` to specify the polynomial `Zₙᵐ(ρ,θ)`, where `n` and `m` are integers with `n ≥ abs(m)` (further, `n - abs(m)` must be even), and `(ρ,θ)` are polar coordinates (radius and angle).
+* The OSA/ANSI standard index (0,1,2,3,...), specified as `OSA(j)`.
+* Noll's sequential index (1,2,3,...), specified as `Noll(j)`.
+* The Fringe indexing scheme (0,1,...,36), specified as `Fringe(j)`.
+
 Numbering conventions are implemented as subtypes of the abstract type `ZernikeIndex`.
-
-The first is to use `NM(n, m)` to specify the polynomial `Zₙᵐ(ρ,θ)`, where `n` and `m` are integers with `n ≥ abs(m)` (further, `n - abs(m)` must be even), and `(ρ,θ)` are polar coordinates (radius and angle).
-
-The second (sequential) index is the OSA/ANSI standard index (0,1,2,3,...), specified as `OSA(j)`.
-
-The third is Noll's sequential index (1,2,3,...), specified as `Noll(j)`.
 
 Invalid inputs to the `ZernikeIndex` constructors result in an `ArgumentError`, which ensures that you can only construct valid indexes. You can convert between types by calling the constructor or using `convert`:
 
@@ -31,6 +31,9 @@ OSA(6)
 
 julia> Noll(nm)
 Noll(9)
+
+julia> Fringe(nm)
+Fringe(10)
 
 julia> NM(OSA(6))
 NM(3, -3)
